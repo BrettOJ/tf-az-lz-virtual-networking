@@ -1,0 +1,94 @@
+trigger:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Terraform_Init_and_Plan
+    displayName: "Terraform Initialize and Plan"
+    jobs:
+      - job: TerraformInitPlan
+        displayName: "Run Terraform Init and Plan"
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            persistCredentials: true
+          - script: |
+              git config --global url."https://$(azdo_pat)@dev.azure.com".insteadOf https://dev.azure.com
+            displayName: 'set extra header'
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          - task: TerraformTaskV4@4
+            displayName: Initialize Terraform
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: 'konjur-azure-service-connection'
+              backendAzureRmResourceGroupName: 'rg-sa-terraform-state'
+              backendAzureRmStorageAccountName: 'bojterraformstate'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'state.tfstate'
+          - task: TerraformTaskV4@4
+            name: terraformPlan
+            displayName: Create Terraform Plan
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              commandOptions: '-out main.tfplan'
+              environmentServiceNameAzureRM: 'konjur-azure-service-connection'
+          - publish: $(System.DefaultWorkingDirectory)
+            artifact: 'main.tfplan'
+            displayName: 'Publish Terraform Plan'
+  - stage: Manual_Approval
+    displayName: "Manual Approval"
+    dependsOn: Terraform_Init_and_Plan
+    jobs:
+      - job: waitForValidation
+        displayName: Wait for external validation
+        pool: server
+        timeoutInMinutes: 4320 # job times out in 3 days
+        steps:
+        - task: ManualValidation@1
+          timeoutInMinutes: 1440 # task times out in 1 day
+          inputs:
+            notifyUsers: |
+              brett.odgers-jewell@konjur.sg,
+            instructions: 'Please validate the build configuration and resume'
+            onTimeout: 'reject'
+            timeout: '0d 0h 30m'
+  - stage: Terraform_Apply
+    displayName: "Terraform Apply"
+    dependsOn: Manual_Approval
+    condition: succeeded()
+    jobs:
+      - job: TerraformApply
+        displayName: "Run Terraform Apply"
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - download: current
+            artifact: 'main.tfplan'
+            displayName: 'Download Terraform Plan'
+          - script: |
+              git config --global url."https://$(azdo_pat)@dev.azure.com".insteadOf https://dev.azure.com
+            displayName: 'set extra header'
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          - task: TerraformTaskV4@4
+            displayName: Initialize Terraform
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: 'konjur-azure-service-connection'
+              backendAzureRmResourceGroupName: 'rg-sa-terraform-state'
+              backendAzureRmStorageAccountName: 'bojterraformstate'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'state.tfstate'
+          - task: TerraformTaskV4@4
+            displayName: Apply Terraform Plan
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              commandOptions: '$(Agent.BuildDirectory)/main.tfplan/main.tfplan'
+              environmentServiceNameAzureRM: 'konjur-azure-service-connection'

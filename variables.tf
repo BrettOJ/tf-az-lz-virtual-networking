@@ -662,4 +662,41 @@ variable "identity_identity_ids" {
 }
 
 
+# Azure Virtual Network Peering Variables
+
+variable "allow_virtual_network_access" {
+  type        = bool
+  description = "(Optional) Allow virtual network access from the remote virtual network. Defaults to true."
+}
+
+variable "allow_forwarded_traffic" {
+  type        = bool
+  description = "(Optional) Allow forwarded traffic from the remote virtual network. Defaults to false."
+}
+
+variable "allow_gateway_transit" {
+  type        = bool
+  description = "(Optional) Allow gateway transit for the remote virtual network. Defaults to false."
+}
+
+variable "use_remote_gateways" {
+  type        = bool
+  description = "(Optional) Allow remote gateways for the remote virtual network. Defaults to false."
+}
+
+variable "local_subnet_names" {
+  type        = list(string)
+  description = "(Optional) List of local subnet names to be peered with the remote virtual network."
+}
+
+variable "remote_subnet_names" {
+  type        = list(string)
+  description = "(Optional) List of remote subnet names to be peered with the local virtual network."
+}
+
+variable "only_ipv6_peering_enabled" {
+  type        = bool
+  description = "(Optional) Enable IPv6 peering only. Defaults to false."
+}
+
 

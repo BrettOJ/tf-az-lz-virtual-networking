@@ -53,3 +53,12 @@ daily_data_cap_notifications_disabled = false
 sampling_percentage                   = 100
 disable_ip_masking                    = false
 force_customer_storage_for_profiler   = false
+
+# virtual network peering values
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = false
+  allow_gateway_transit        = false
+  use_remote_gateways          = false
+  local_subnet_names           = module.azure_subnet.snet_output[0].name
+  remote_subnet_names          = "snet-pc-envznwww-1"
+  only_ipv6_peering_enabled    = false

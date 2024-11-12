@@ -1,3 +1,8 @@
+data "azurerm_virtual_network" "vpn_network" {
+  name                = "vnet-pc-envznwww-name"
+  resource_group_name = "rg-vet-s2s-vpn"
+}
+
 
 module "azure_virtual_network"  {
   source              = "git::https://github.com/BrettOJ/tf-az-module-virtual-network?ref=main"
@@ -74,4 +79,21 @@ resource "azurerm_private_dns_zone_virtual_network_link" "example" {
   resource_group_name   = module.resource_groups.rg_output[1].name
   private_dns_zone_name = module.azure_private_dns_zone.azprvdns_output.name
   virtual_network_id    = module.azure_virtual_network.vnets_output.id
+}
+
+
+
+module "azure_virtual_network_peering" {
+  source = "git::https://github.com/BrettOJ/tf-az-module-network-peering?ref=main"
+  resource_group_name          = module.resource_groups.resource_group_output[0].name
+  virtual_network_name         = module.azure_virtual_network.vnets_output.name
+  remote_virtual_network_id    = data.azurerm_virtual_network.vpn_network.id
+  allow_virtual_network_access = var.allow_virtual_network_access
+  allow_forwarded_traffic      = var.allow_forwarded_traffic
+  allow_gateway_transit        = var.allow_gateway_transit 
+  use_remote_gateways          = var.use_remote_gateways
+  local_subnet_names           = var.local_subnet_names
+  remote_subnet_names          = var.remote_subnet_names
+  only_ipv6_peering_enabled    = var.only_ipv6_peering_enabled
+  triggers = var.triggers
 }
